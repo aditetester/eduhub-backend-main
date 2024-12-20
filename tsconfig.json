@@ -11,6 +11,6 @@
     "jsx": "react",
     "allowJs": true
   },
-  "include": ["src/**/*.ts", "src/types/**/*"],  // Ensure the types folder is included
+  "include": ["src/**/*.ts", "src/types/**/*", "src/controller/User/subscriptionController.tsx"],  // Ensure the types folder is included
   "exclude": ["node_modules"]
 }

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import Resource from "../../models/Resource";
 import Purchase from "../../models/Purchase";
-import { User } from "../../models/User";
+import  User from "../../models/User";
 import Subject from "../../models/Subject";
 
 export const getDashboardStats = async (req: Request, res: Response) => {

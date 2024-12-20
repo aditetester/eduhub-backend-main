@@ -19,7 +19,14 @@ const subjectSchema = new mongoose.Schema({
   image: {
     type: String,
     required: false
-  }
+  },
+  resources: [{
+    id: String,
+    name: String,
+    content: String,
+    description: String,
+    // ... other resource fields
+  }]
 }, { timestamps: true });
 
 export default mongoose.model('Subject', subjectSchema);

@@ -1,6 +1,8 @@
-import express from "express";
+import dotenv from 'dotenv';
+dotenv.config();
+
+import express, { NextFunction, Request, Response, RequestHandler } from "express";
 import mongoose from "mongoose";
-import dotenv from "dotenv"; 
 import boardRoutes from "./routes/admin/boardRoutes";
 import standardRoutes from "./routes/admin/standardRoutes";
 import subjectRoutes from "./routes/admin/subjectRoutes";
@@ -14,17 +16,32 @@ import cors from "cors";
 import path from 'path';
 import dashboardRoutes from "./routes/admin/dashboardRoutes";
 import UserRoutes from './routes/User/index';
-
-dotenv.config(); 
+import webhookRoutes from './routes/webhook';
+import { validateSubscription, validatePayment } from './validators/subscriptionValidator';
+import { checkSubscriptionStatus } from './middleware/checkSubscription';
+import subscriptionRoutes from './routes/subscriptionRoutes';
+import { initiateSubscription, confirmSubscription } from "./controller/User/paymentController";
+import { ApiError } from './utils/ApiError';
+import fs from 'fs';
 
 const app = express();
 
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use('/uploads', (req, res, next) => {
+  const filePath = path.join(__dirname, '../uploads', req.url);
+  console.log('File access debug:', {
+    requestUrl: req.url,
+    fullPath: filePath,
+    exists: fs.existsSync(filePath),
+    __dirname: __dirname,
+    directories: fs.readdirSync(path.join(__dirname, '../uploads'))
+  });
+  next();
+}, express.static(path.join(__dirname, '../uploads')));
 
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL || "http://localhost:3001",
-    "http://localhost:3002"
+    "http://localhost:3002","http://localhost:3005","http://localhost:3003"
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -47,9 +64,22 @@ app.use("/admin", purchaseRoutes);
 
 // Public routes (no authentication required)
 app.use('/api', UserRoutes);
+app.use('/api', subscriptionRoutes);
 
-// Admin routes (with authentication)
+// Webhook route (must be before json middleware)
+app.use('/webhook', webhookRoutes);
 
+// Protected routes
+
+
+// Error handling middleware
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error(err.stack);
+  res.status(err instanceof ApiError ? err.statusCode : 500).json({
+    success: false,
+    error: err instanceof ApiError ? err.message : 'Internal server error'
+  });
+});
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static('uploads'));

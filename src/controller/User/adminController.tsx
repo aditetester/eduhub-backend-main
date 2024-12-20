@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { User } from "../../models/User";
+import  User  from "../../models/User";
 import bcrypt from "bcrypt";
 
 // Login controller (without token generation)
@@ -14,6 +14,12 @@ export const login = async (req: Request, res: Response) => {
         }
 
         // Verify password
+        if (!user || !user.password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid credentials'
+            });
+        }
         const isValidPassword = await bcrypt.compare(password, user.password);
         if (!isValidPassword) {
             return res.status(401).json({ message: "Invalid credentials" });
@@ -107,6 +113,12 @@ export const changePassword = async (req: Request, res: Response) => {
         }
 
         // Verify current password
+        if (!user || !user.password) {
+            return res.status(400).json({
+                success: false,
+                message: 'User not found or invalid password'
+            });
+        }
         const isValidPassword = await bcrypt.compare(currentPassword, user.password);
         if (!isValidPassword) {
             return res.status(401).json({ message: "Current password is incorrect" });

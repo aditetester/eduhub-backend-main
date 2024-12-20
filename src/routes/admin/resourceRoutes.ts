@@ -24,7 +24,7 @@ router.post('/:subject_id',
   },
   resourceUpload as express.RequestHandler,
   handleUploadError as express.ErrorRequestHandler,
-  validateResourceInput as express.RequestHandler,
+ 
   cleanupOnError as express.ErrorRequestHandler,
   async (req: Request, res: Response, next: NextFunction) => {
     try {

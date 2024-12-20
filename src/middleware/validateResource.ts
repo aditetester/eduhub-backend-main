@@ -15,7 +15,7 @@ export const validateResourceInput = (req: Request, res: Response, next: NextFun
   const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
 
   // Image validation only for resource creation
-  if (!files?.image) {
+  if (!files?.image?.[0] && !files?.thumbnail?.[0]) {
     return res.status(400).json({
       success: false,
       message: "Image is required"
@@ -66,6 +66,16 @@ export const validateResourceInput = (req: Request, res: Response, next: NextFun
       message: "Invalid resource type. Must be either 'PDF' or 'VIDEO'"
     });
   }
+
+// Validate image/thumbnail file type
+  const imageFile = files.image?.[0] || files.thumbnail?.[0];
+  if (imageFile && !imageFile.mimetype.startsWith('image/')) {
+    return res.status(400).json({
+      success: false,
+      message: "Thumbnail must be an image file"
+    });
+  }
+
 
   next();
 };

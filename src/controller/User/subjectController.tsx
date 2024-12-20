@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import Subject from "../../models/Subject";
 import mongoose from "mongoose";
+import Subscription from "../../models/Subscription";
 
 // Helper function for image URL
 const addImageUrl = (subject: any) => {
@@ -8,55 +9,60 @@ const addImageUrl = (subject: any) => {
   const subjectObj = subject.toObject ? subject.toObject() : subject;
   return {
     ...subjectObj,
-    imageUrl: subject.image ? `${process.env.BASE_URL}/${subject.image}` : null
+    imageUrl: subject.image ? `${process.env.BASE_URL}/${subject.image.replace(/\\/g, '/')}` : null
   };
 };
+
+// Fix 1: Add custom interface to extend Request
+interface AuthRequest extends Request {
+  user?: {
+    id: string;
+    // add other user properties if needed
+  };
+}
 
 // Get all subjects for a specific standard
 export const getSubjectsByStandard = async (req: Request, res: Response) => {
   try {
-    const { standard_id } = req.params;
+    const { standardId } = req.params;
     
-    if (!mongoose.Types.ObjectId.isValid(standard_id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid standard ID format"
-      });
-    }
-
-    const subjects = await Subject.find({ standard: standard_id })
+    const subjects = await Subject.find({ standard: standardId })
       .populate('standard', 'grade')
-      .sort({ name: 1 });
+      .lean();
 
     const formattedSubjects = subjects.map(subject => addImageUrl(subject));
 
-    return res.status(200).json({
+    res.json({
       success: true,
       data: formattedSubjects
     });
   } catch (error) {
-    return res.status(500).json({
+    console.error('Error fetching subjects:', error);
+    res.status(500).json({
       success: false,
-      message: "Error fetching subjects",
-      error: error instanceof Error ? error.message : 'Unknown error'
+      message: 'Error fetching subjects'
     });
   }
 };
 
 // Get subject details by ID
-export const getSubjectDetails = async (req: Request, res: Response) => {
+export const getSubjectDetails = async (req: AuthRequest, res: Response) => {
+  // Add validation for user authentication
+  if (!req.user?.id) {
+    return res.status(401).json({
+      success: false,
+      message: "Authentication required"
+    });
+  }
+
   try {
     const { subject_id } = req.params;
+    const userId = req.user.id;
 
-    if (!mongoose.Types.ObjectId.isValid(subject_id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid subject ID format"
-      });
-    }
-
+    // Get subject with resources
     const subject = await Subject.findById(subject_id)
-      .populate('standard', 'grade');
+      .populate('standard', 'grade')
+      .populate('resources'); // Make sure resources are populated
 
     if (!subject) {
       return res.status(404).json({
@@ -65,22 +71,52 @@ export const getSubjectDetails = async (req: Request, res: Response) => {
       });
     }
 
-    // Get related subjects from the same standard
-    const relatedSubjects = await Subject.find({
-      standard: subject.standard,
-      _id: { $ne: subject_id }
-    })
-    .limit(3)
-    .select('name image price');
+    // Check both subject and standard level subscriptions
+    const subscription = await Subscription.findOne({
+      user: userId,
+      $or: [
+        { subject: subject_id, type: 'SUBJECT' },
+        { standard: subject.standard._id, type: 'STANDARD' }
+      ],
+      status: 'active',
+      expiryDate: { $gt: new Date() },
+      paymentStatus: 'completed'
+    });
+
+    // Process resources based on subscription
+    let resources = [...subject.resources];
+    if (!subscription) {
+      const visibleCount = Math.ceil(resources.length / 2);
+      resources = resources.map((resource: any, index) => {
+        if (index < visibleCount) {
+          return resource;
+        }
+        return {
+          _id: resource._id,
+          name: resource.name,
+          isLocked: true,
+          // Remove sensitive/premium content
+          content: null,
+          downloadUrl: null
+        };
+      });
+    }
 
     return res.status(200).json({
       success: true,
       data: {
-        ...addImageUrl(subject),
-        relatedSubjects: relatedSubjects.map(sub => addImageUrl(sub))
+        ...subject.toObject(),
+        imageUrl: subject.image ? `${process.env.BASE_URL}/${subject.image}` : null,
+        resources,
+        subscriptionStatus: {
+          isSubscribed: !!subscription,
+          type: subscription?.type || null,
+          expiryDate: subscription?.expiryDate || null
+        }
       }
     });
   } catch (error) {
+    console.error('Error in getSubjectDetails:', error);
     return res.status(500).json({
       success: false,
       message: "Error fetching subject details",

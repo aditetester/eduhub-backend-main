@@ -33,7 +33,10 @@ const resourceSchema = new mongoose.Schema({
   },
   fileUrl: {
     type: String,
-    required: function(this: IResource) { return this.type === 'PDF'; }  // Required only for PDF
+    get: function(fileUrl: string) {
+      if (!fileUrl) return null;
+      return `http://localhost:3000/uploads/${fileUrl}`;
+    }
   },
   videoUrl: {
     type: String,
@@ -52,7 +55,8 @@ const resourceSchema = new mongoose.Schema({
     required: function(this: IResource) { return this.type === 'VIDEO'; }  // Required only for VIDEO
   }
 }, { 
-  timestamps: true 
+  timestamps: true,
+  toJSON: { getters: true }
 });
 
 // Add any methods or virtuals here if needed

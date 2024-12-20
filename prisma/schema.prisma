@@ -1,0 +1,9 @@
+model Subscription {
+  id           String   @id @default(uuid())
+  userId       String
+  type         String   // 'SUBJECT' or 'STANDARD'
+  referenceId  String   // subjectId or standardId
+  validUntil   DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+} 

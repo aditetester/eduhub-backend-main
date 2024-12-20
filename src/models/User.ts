@@ -1,20 +1,33 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
-interface IUser extends Document {
-  name: string;
-  email: string;
-  password: string;
-  role: "admin" | "student";
-}
-
-const UserSchema: Schema<IUser> = new Schema(
-  {
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
-    role: { type: String, enum: ["admin", "student"], default: "student" },
+const userSchema = new mongoose.Schema({
+  name: String,
+  email: String,
+  password: String,
+  role: {
+    type: String,
+    default: 'student'
   },
-  { timestamps: true }
-);
+  subscriptions: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Subscription'
+  }]
+}, {
+  timestamps: true
+});
 
-export const User = mongoose.model<IUser>("User", UserSchema);
+// Add password comparison method
+userSchema.methods.comparePassword = async function(candidatePassword: string) {
+  try {
+    // If using bcrypt
+    return await bcrypt.compare(candidatePassword, this.password);
+    
+    // If storing plain text passwords (not recommended for production)
+    // return this.password === candidatePassword;
+  } catch (error) {
+    return false;
+  }
+};
+
+export default mongoose.model('User', userSchema);

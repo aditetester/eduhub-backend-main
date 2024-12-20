@@ -112,19 +112,23 @@ export const createResource = async (
           error: 'PDF file is required'
         });
       }
-      resourceData.fileUrl = `/uploads/resources/${files.file[0].filename}`;
+      resourceData.fileUrl = files.file?.[0]
+        ? `/uploads/resources/${files.file[0].filename}`
+        : null;
       resourceData.size = `${(files.file[0].size / (1024 * 1024)).toFixed(2)} MB`;
     }
 
     // Handle thumbnail
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-    if (!files.thumbnail?.[0]) {
+    if (!files.image?.[0]) {
       return res.status(400).json({
         success: false,
-        error: 'Thumbnail is required'
+        error: 'Image is required'
       });
     }
-    resourceData.thumbnailUrl = `uploads/thumbnails/${files.thumbnail[0].filename}`;
+    resourceData.thumbnailUrl = files.image?.[0]
+      ? `/uploads/images/${files.image[0].filename}`
+      : null;
 
     console.log('Creating resource with data:', resourceData);
     const resource = await Resource.create(resourceData);
@@ -238,7 +242,7 @@ export const updateResource = async (
             fs.unlinkSync(oldPath);
           }
         }
-        updates.thumbnailUrl = `/uploads/thumbnails/${files.thumbnail[0].filename}`;
+        updates.thumbnailUrl = `/uploads/images/${files.thumbnail[0].filename}`;
       }
     }
 
@@ -345,9 +349,13 @@ export const getResourceById = async (req: Request, res: Response) => {
       board: resource.board && typeof resource.board === 'object' && 'name' in resource.board ? resource.board.name : resource.board,
       standard: resource.standard && typeof resource.standard === 'object' && 'grade' in resource.standard ? resource.standard.grade : resource.standard,
       subject: resource.subject && typeof resource.subject === 'object' && 'name' in resource.subject ? resource.subject.name : resource.subject,
-      fileUrl: cleanFilePath(resource.fileUrl),
+      fileUrl: resource.fileUrl 
+        ? `${process.env.BACKEND_URL}${resource.fileUrl}`
+        : null,
       videoUrl: resource.videoUrl,
-      thumbnailUrl: cleanFilePath(resource.thumbnailUrl),
+      thumbnailUrl: resource.thumbnailUrl 
+        ? `${process.env.BACKEND_URL}${resource.thumbnailUrl}`
+        : null,
       size: resource.size,
       duration: resource.duration,
       createdAt: resource.createdAt,
